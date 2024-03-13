@@ -18,16 +18,23 @@ pip install nano-askllm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from nano_askllm import AskLLM
 
-datapoints = [
-  "first datapoint",  # See tests/test_askllm.py for examples
-  "second datapoint",
+datapoints = [  # See tests/test_askllm.py for more examples
+  "Beginners BBQ Class Taking Place in Missoula!\nDo you want to get better at making delicious BBQ? You will have the opportunity, put this on your calendar now. Thursday, September 22nd join World Class BBQ Champion, Tony Balay from Lonestar Smoke Rangers. He will be teaching a beginner level class for everyone who wants to get better with their culinary skills.\nHe will teach you everything you need to know to compete in a KCBS BBQ competition, including techniques, recipes, timelines, meat selection and trimming, plus smoker and fire information.\nThe cost to be in the class is $35 per person, and for spectators it is free. Included in the cost will be either a t-shirt or apron and you will be tasting samples of each meat that is prepared.",
 ]
 
 model_id = "google/gemma-2b-it"
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 model = AutoModelForCausalLM.from_pretrained(model_id)
 
-prompt_template = "..."  # See tests/test_askllm.py for an example
+prompt_template = """###
+{datapoint}
+###
+
+Does the previous paragraph demarcated within ### and ### contain informative signal for pre-training a large-language model? An informative datapoint should be well-formatted, contain some usable knowledge of the world, and strictly NOT have any harmful, racist, sexist, etc. content.
+
+OPTIONS: yes / no
+ANSWER:"""
+
 yes_tokens = ["yes", "Yes", "YES", " yes", " Yes", " YES"]
 
 llm = AskLLM(tokenizer, model, prompt_template=prompt_template, yes_tokens=yes_tokens)
@@ -41,6 +48,9 @@ print(results)
 ## Development
 
 ```bash
+poetry -V  # Poetry (version 1.5.1)
+git clone https://github.com/susumuota/nano-askllm.git
+cd nano-askllm
 poetry install
 poetry run pytest -s     # run pytest once
 poetry run -- ptw -- -s  # watch for changes and run pytest
