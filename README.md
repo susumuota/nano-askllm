@@ -72,3 +72,8 @@ poetry run -- ptw -- -s  # watch for changes and run pytest
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.
+
+## TODO
+
+- [ ] Add Colab notebook
+- [ ] Add examples using Hugging Face Datasets
