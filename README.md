@@ -1,10 +1,12 @@
 # nano-askllm
 
-Unofficial implementation of the paper 'How to Train Data-Efficient LLMs' [arXiv:2402.09668](https://arxiv.org/abs/2402.09668)
+Unofficial implementation of the Ask-LLM paper 'How to Train Data-Efficient LLMs', [arXiv:2402.09668](https://arxiv.org/abs/2402.09668).
 
 [![PyPI](https://img.shields.io/pypi/v/nano-askllm?color=blue)](https://pypi.org/project/nano-askllm/)
 [![GitHub License](https://img.shields.io/github/license/susumuota/nano-askllm)](https://github.com/susumuota/nano-askllm/blob/main/LICENSE)
 [![GitHub last commit](https://img.shields.io/github/last-commit/susumuota/nano-askllm)](https://github.com/susumuota/nano-askllm/commits)
+
+![Ask-LLM prompt](https://github.com/susumuota/nano-askllm/assets/1632335/d3f3314b-0462-4bc2-bed3-eb1d2a340a81)
 
 ## Installation
 
@@ -42,7 +44,7 @@ prompts = llm.get_prompts(datapoints)
 inputs = tokenizer(prompts, return_tensors="pt", padding=True).to(model.device)
 results = llm.ask(inputs)
 
-print(results)
+print(results)  # tensor([0.9997])
 ```
 
 ## Development
