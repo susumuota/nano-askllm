@@ -6,7 +6,7 @@ Unofficial implementation of the Ask-LLM paper 'How to Train Data-Efficient LLMs
 [![GitHub License](https://img.shields.io/github/license/susumuota/nano-askllm)](https://github.com/susumuota/nano-askllm/blob/main/LICENSE)
 [![GitHub last commit](https://img.shields.io/github/last-commit/susumuota/nano-askllm)](https://github.com/susumuota/nano-askllm/commits)
 
-![Ask-LLM prompt](https://github.com/susumuota/nano-askllm/assets/1632335/d3f3314b-0462-4bc2-bed3-eb1d2a340a81)
+<img width="514" alt="Ask-LLM prompt" src="https://github.com/susumuota/nano-askllm/assets/1632335/f7bd37dc-3702-43f9-a6db-d4f74d7822ea">
 
 ## Installation
 
