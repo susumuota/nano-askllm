@@ -16,35 +16,89 @@ pip install nano-askllm
 
 ## Usage
 
+- Scoring C4 English dataset with `flan-t5-small` model.
+> **Note**: Flan-T5 models cannot tokenize multilingual text properly (e.g. Japanese).
+
 ```python
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import T5ForConditionalGeneration, T5Tokenizer
+from datasets import load_dataset
 from nano_askllm import AskLLM
 
-datapoints = [  # See tests/test_askllm.py for more examples
-  "Beginners BBQ Class Taking Place in Missoula!\nDo you want to get better at making delicious BBQ? You will have the opportunity, put this on your calendar now. Thursday, September 22nd join World Class BBQ Champion, Tony Balay from Lonestar Smoke Rangers. He will be teaching a beginner level class for everyone who wants to get better with their culinary skills.\nHe will teach you everything you need to know to compete in a KCBS BBQ competition, including techniques, recipes, timelines, meat selection and trimming, plus smoker and fire information.\nThe cost to be in the class is $35 per person, and for spectators it is free. Included in the cost will be either a t-shirt or apron and you will be tasting samples of each meat that is prepared.",
-]
+model_id = "google/flan-t5-small"
+tokenizer = T5Tokenizer.from_pretrained(model_id)
+model = T5ForConditionalGeneration.from_pretrained(model_id)
+
+dataset = load_dataset("allenai/c4", "en", split="train", streaming=True)
+
+llm = AskLLM(tokenizer, model)
+
+batch_size = 1
+num_ask = 10
+
+for i in range(num_ask):
+    datapoints = [item["text"] for item in list(dataset.take(batch_size))]
+    results = llm.ask(datapoints)
+    for score, datapoint in zip(results.tolist(), datapoints):
+        text = datapoint[:40].replace("\n", " ")
+        print(f"score: {score:.4f}\ttext: {text}")
+    dataset = dataset.skip(batch_size)
+```
+
+- Scoring mC4 Japanese dataset with `gemma-2b-it` model. `gemma` models need to tweak the prompt template and the yes tokens.
+
+```python
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from datasets import load_dataset
+from nano_askllm import AskLLM
 
 model_id = "google/gemma-2b-it"
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 model = AutoModelForCausalLM.from_pretrained(model_id)
 
-prompt_template = """###
-{datapoint}
+dataset = load_dataset("allenai/c4", "ja", split="train", streaming=True)
+
+prompt_template_prefix = "###\n"
+prompt_template_postfix = """
 ###
 
 Does the previous paragraph demarcated within ### and ### contain informative signal for pre-training a large-language model? An informative datapoint should be well-formatted, contain some usable knowledge of the world, and strictly NOT have any harmful, racist, sexist, etc. content.
 
-OPTIONS: yes / no
+OPTIONS: yes/no
 ANSWER:"""
 
 yes_tokens = ["yes", "Yes", "YES", " yes", " Yes", " YES"]
 
-llm = AskLLM(tokenizer, model, prompt_template=prompt_template, yes_tokens=yes_tokens)
-prompts = llm.get_prompts(datapoints)
-inputs = tokenizer(prompts, return_tensors="pt", padding=True).to(model.device)
-results = llm.ask(inputs)
+llm = AskLLM(
+    tokenizer,
+    model,
+    prompt_template_prefix=prompt_template_prefix,
+    prompt_template_postfix=prompt_template_postfix,
+    yes_tokens=yes_tokens,
+    max_tokens=512,  # You can increase it up to 8192 for gemma-2b-it.
+)
 
-print(results)  # tensor([0.9997])
+batch_size = 1
+num_ask = 10
+
+for i in range(num_ask):
+    datapoints = [item["text"] for item in list(dataset.take(batch_size))]
+    results = llm.ask(datapoints)
+    for score, datapoint in zip(results.tolist(), datapoints):
+        text = datapoint[:40].replace("\n", " ")
+        print(f"score: {score:.4f}\ttext: {text}")
+    dataset = dataset.skip(batch_size)
+```
+
+If you want to see the debug logs, you can set the logger as follows:
+
+```python
+from logging import DEBUG, StreamHandler, getLogger
+
+logger = getLogger("nano_askllm.askllm")
+logger.setLevel(DEBUG)
+handler = StreamHandler()
+handler.setLevel(DEBUG)
+logger.addHandler(handler)
 ```
 
 ## Development
@@ -78,4 +132,4 @@ MIT License. See [LICENSE](LICENSE) for details.
 ## TODO
 
 - [ ] Add Colab notebook
-- [ ] Add examples using Hugging Face Datasets
+- [x] Add examples using Hugging Face Datasets
