@@ -26,7 +26,7 @@ logger.addHandler(handler)
 
 
 def test_version():
-    assert __version__ == "0.1.0"
+    assert __version__ == "0.2.0"
     print("test_version passed")
 
 
