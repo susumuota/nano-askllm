@@ -84,7 +84,6 @@ OPTIONS:
             # TODO: truncation
             inputs = self.tokenizer(prompts, return_tensors="pt", padding=True).to(self.model.device)
         logger.debug(f"inputs.input_ids.shape: {inputs.input_ids.shape}")
-        logger.debug(f"decode(inputs.input_ids[0]): {self.tokenizer.decode(inputs.input_ids[0])}")
         with torch.no_grad():
             if self.__is_t5():
                 # TODO: Confirm that this is the correct way to forward on the encoder-decoder model.
