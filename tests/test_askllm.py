@@ -26,7 +26,7 @@ logger.addHandler(handler)
 
 
 def test_version():
-    assert __version__ == "0.2.0"
+    assert __version__ == "0.2.1"
     print("test_version passed")
 
 
@@ -45,21 +45,21 @@ def test_flan_t5_c4_en():
     llm = AskLLM(tokenizer, model)
     assert isinstance(llm, AskLLM)
 
-    batch_size = 1
-    num_ask = 10
+    batch_size = 2
+    num_ask = 5
 
     print("-" * 80)
     start_time = time()
     for i in range(num_ask):
         print(f"batch {i + 1} start")
         datapoints = [item["text"] for item in list(dataset.take(batch_size))]
-        results = llm.ask(datapoints)
-        assert isinstance(results, torch.Tensor) and results.shape == (batch_size,)
-        assert all(results >= 0.0) and all(results <= 1.0)
-        for score, datapoint in zip(results.tolist(), datapoints):
+        scores = llm.ask(datapoints)
+        assert isinstance(scores, torch.Tensor) and scores.shape == (batch_size,)
+        assert all(scores >= 0.0) and all(scores <= 1.0)
+        for score, datapoint in zip(scores.tolist(), datapoints):
             text = datapoint[:80].replace("\n", " ")
             print(f"score: {score:.4f}\ttext: {text}")
-        del results
+        del scores
         dataset = dataset.skip(batch_size)
         end_time = time()
         print(f"batch {i + 1} end, {(end_time - start_time):.4f} seconds")
@@ -109,21 +109,21 @@ ANSWER:"""  # noqa: E501
     )
     assert llm is not None
 
-    batch_size = 1
-    num_ask = 10
+    batch_size = 2
+    num_ask = 5
 
     print("-" * 80)
     start_time = time()
     for i in range(num_ask):
         print(f"batch {i + 1} start")
         datapoints = [item["text"] for item in list(dataset.take(batch_size))]
-        results = llm.ask(datapoints)
-        assert isinstance(results, torch.Tensor) and results.shape == (batch_size,)
-        assert all(results >= 0.0) and all(results <= 1.0)
-        for score, datapoint in zip(results.tolist(), datapoints):
+        scores = llm.ask(datapoints)
+        assert isinstance(scores, torch.Tensor) and scores.shape == (batch_size,)
+        assert all(scores >= 0.0) and all(scores <= 1.0)
+        for score, datapoint in zip(scores.tolist(), datapoints):
             text = datapoint[:80].replace("\n", " ")
             print(f"score: {score:.4f}\ttext: {text}")
-        del results
+        del scores
         dataset = dataset.skip(batch_size)
         end_time = time()
         print(f"batch {i + 1} end, {(end_time - start_time):.4f} seconds")
