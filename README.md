@@ -32,13 +32,13 @@ dataset = load_dataset("allenai/c4", "en", split="train", streaming=True)
 
 llm = AskLLM(tokenizer, model)
 
-batch_size = 1
-num_ask = 10
+batch_size = 2
+num_ask = 5
 
 for i in range(num_ask):
     datapoints = [item["text"] for item in list(dataset.take(batch_size))]
-    results = llm.ask(datapoints)
-    for score, datapoint in zip(results.tolist(), datapoints):
+    scores = llm.ask(datapoints)
+    for score, datapoint in zip(scores.tolist(), datapoints):
         text = datapoint[:40].replace("\n", " ")
         print(f"score: {score:.4f}\ttext: {text}")
     dataset = dataset.skip(batch_size)
@@ -77,13 +77,13 @@ llm = AskLLM(
     max_tokens=512,  # You can increase it up to 8192 for gemma-2b-it.
 )
 
-batch_size = 1
-num_ask = 10
+batch_size = 2
+num_ask = 5
 
 for i in range(num_ask):
     datapoints = [item["text"] for item in list(dataset.take(batch_size))]
-    results = llm.ask(datapoints)
-    for score, datapoint in zip(results.tolist(), datapoints):
+    scores = llm.ask(datapoints)
+    for score, datapoint in zip(scores.tolist(), datapoints):
         text = datapoint[:40].replace("\n", " ")
         print(f"score: {score:.4f}\ttext: {text}")
     dataset = dataset.skip(batch_size)

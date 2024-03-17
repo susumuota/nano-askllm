@@ -33,8 +33,7 @@ OPTIONS:
     DEFAULT_YES_TOKENS = ["yes", "Yes"]
 
     # The number of tokens to avoid to exceed the maximum context size.
-    # TODO: 1?
-    TOKEN_MARGIN = 2
+    TOKEN_MARGIN = 1
 
     def __init__(
         self,
@@ -51,7 +50,7 @@ OPTIONS:
         self.prompt_template_postfix = prompt_template_postfix
         self.yes_tokens = yes_tokens
         # Convert yes_tokens to yes_ids.
-        if not all([len(self.tokenizer.encode(yes, add_special_tokens=False)) == 1 for yes in self.yes_tokens]):
+        if not all([self.__token_length(yes) == 1 for yes in self.yes_tokens]):
             raise ValueError("Each of the word must be tokenized to a single token.")
         self.yes_ids: torch.Tensor = (
             self.tokenizer(yes_tokens, return_tensors="pt", add_special_tokens=False)
@@ -77,29 +76,21 @@ OPTIONS:
 
     def ask(self, datapoints: list[str]) -> torch.Tensor:
         prompts = self.get_prompts(datapoints)
-        if self.__is_t5():
-            # TODO: confirm that this is the correct way to truncate the input.
-            inputs = self.tokenizer(prompts, return_tensors="pt", padding="max_length").to(self.model.device)
-        else:  # AutoTokenizer
-            # TODO: truncation
-            inputs = self.tokenizer(prompts, return_tensors="pt", padding=True).to(self.model.device)
+        inputs = self.tokenizer(prompts, return_tensors="pt", padding=True).to(self.model.device)
         logger.debug(f"inputs.input_ids.shape: {inputs.input_ids.shape}")
         with torch.no_grad():
-            if self.__is_t5():
-                # TODO: Confirm that this is the correct way to forward on the encoder-decoder model.
-                outputs = self.model(input_ids=inputs.input_ids, decoder_input_ids=inputs.input_ids)
-            else:  # AutoModelForCausalLM
-                outputs = self.model(input_ids=inputs.input_ids, attention_mask=inputs.attention_mask)
-        logger.debug(f"outputs.logits.shape: {outputs.logits.shape}")
-        logits = outputs.logits[:, -1, :]
+            outputs = self.model.generate(**inputs, max_new_tokens=1, output_logits=True, return_dict_in_generate=True)
+        logits = outputs.logits[0]
         logger.debug(f"logits.shape: {logits.shape}")
         probs = torch.nn.functional.softmax(logits, dim=-1)
         logger.debug(f"probs.shape: {probs.shape}")
         self.__log_top_k(probs) if logger.isEnabledFor(logging.DEBUG) else None
         yes_probs = probs[:, self.yes_ids]
         logger.debug(f"yes_probs.shape: {yes_probs.shape}")
-        del inputs, outputs, logits, probs
-        return torch.sum(yes_probs, dim=-1)
+        scores = torch.sum(yes_probs, dim=-1)
+        logger.debug(f"scores.shape: {scores.shape}")
+        del yes_probs, probs, logits, outputs, inputs
+        return scores
 
     def get_prompt(self, datapoint: str) -> str:
         # TODO: Cache prompt template to avoid redundant tokenization.
@@ -148,5 +139,5 @@ OPTIONS:
     def __log_top_k(self, probs: torch.Tensor, k: int = 10):
         for prob in probs:
             top_k = torch.topk(prob, k, dim=-1)
-            for i, (idx, prob) in enumerate(zip(top_k.indices, top_k.values)):
-                logger.debug(f"{i + 1:2d}\t'{self.tokenizer.decode(idx)}'\t{prob.item():.4f}")
+            for i, (idx, val) in enumerate(zip(top_k.indices, top_k.values)):
+                logger.debug(f"{i + 1:2d}\t'{self.tokenizer.decode(idx)}'\t{val.item():.4f}")
