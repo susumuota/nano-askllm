@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nano-askllm"
-version = "0.2.1"
+version = "0.2.2"
 description = "Unofficial implementation of the Ask-LLM paper 'How to Train Data-Efficient LLMs', arXiv:2402.09668."
 authors = ["Susumu OTA <1632335+susumuota@users.noreply.github.com>"]
 readme = "README.md"
@@ -24,6 +24,8 @@ pytest-watch = "^4.2.0"
 jupyterlab = "^4.1.4"
 datasets = "^2.18.0"
 sentencepiece = "^0.2.0"
+protobuf = "^5.26.0"
+accelerate = "^0.28.0"
 
 [build-system]
 requires = ["poetry-core"]

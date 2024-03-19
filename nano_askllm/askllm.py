@@ -32,9 +32,6 @@ OPTIONS:
     # Each of the word must be tokenized to a single token.
     DEFAULT_YES_TOKENS = ["yes", "Yes"]
 
-    # The number of tokens to avoid to exceed the maximum context size.
-    TOKEN_MARGIN = 1
-
     def __init__(
         self,
         tokenizer: AutoTokenizer | T5Tokenizer,
@@ -62,13 +59,17 @@ OPTIONS:
         self.max_tokens: int = (
             max_tokens
             if max_tokens is not None
-            else (self.model.config.n_positions if self.__is_t5() else self.model.config.max_position_embeddings)
+            else (
+                self.model.config.n_positions  # TODO: 512 or no truncation needed for T5 model? see https://github.com/huggingface/transformers/issues/8047  # noqa: E501
+                if isinstance(self.model, T5ForConditionalGeneration)
+                else self.model.config.max_position_embeddings
+            )
         )
         logger.debug(f"max_tokens: {self.max_tokens}")
         prompt_len = sum(
             [self.__token_length(item) for item in [self.prompt_template_prefix, self.prompt_template_postfix]]
         )
-        self.max_datapoint_tokens: int = self.max_tokens - self.TOKEN_MARGIN - prompt_len
+        self.max_datapoint_tokens: int = self.max_tokens - prompt_len - 1  # -1 for special token
         logger.debug(f"max_datapoint_tokens: {self.max_datapoint_tokens}")
 
     def __del__(self):
@@ -77,18 +78,24 @@ OPTIONS:
     def ask(self, datapoints: list[str]) -> torch.Tensor:
         prompts = self.get_prompts(datapoints)
         inputs = self.tokenizer(prompts, return_tensors="pt", padding=True).to(self.model.device)
-        logger.debug(f"inputs.input_ids.shape: {inputs.input_ids.shape}")
-        with torch.no_grad():
-            outputs = self.model.generate(**inputs, max_new_tokens=1, output_logits=True, return_dict_in_generate=True)
+        logger.debug(f"inputs.input_ids.shape: {inputs.input_ids.shape}")  # (batch_size, seq_len)
+        # obtain logits by calling `generate` with output_logits=True and return_dict_in_generate=True
+        # it should be same logits by calling `forward`. e.g.,
+        # with torch.no_grad():
+        #     logits = model(input_ids).logits[:, -1, :]
+        # see https://github.com/huggingface/transformers/blob/56baa03380fc17d85705240ebbc57c075a9b3f23/tests/generation/test_utils.py#L3479  # noqa: E501
+        outputs = self.model.generate(**inputs, max_new_tokens=1, output_logits=True, return_dict_in_generate=True)
         logits = outputs.logits[0]
-        logger.debug(f"logits.shape: {logits.shape}")
+        logger.debug(f"logits.shape: {logits.shape}")  # (batch_size, vocab_size)
+        # convert logits to probabilities
+        # see https://github.com/huggingface/transformers/blob/56baa03380fc17d85705240ebbc57c075a9b3f23/tests/generation/test_utils.py#L3507  # noqa: E501
         probs = torch.nn.functional.softmax(logits, dim=-1)
-        logger.debug(f"probs.shape: {probs.shape}")
-        self.__log_top_k(probs) if logger.isEnabledFor(logging.DEBUG) else None
+        logger.debug(f"probs.shape: {probs.shape}")  # (batch_size, vocab_size)
+        self.__log_topk(probs) if logger.isEnabledFor(logging.DEBUG) else None
         yes_probs = probs[:, self.yes_ids]
-        logger.debug(f"yes_probs.shape: {yes_probs.shape}")
+        logger.debug(f"yes_probs.shape: {yes_probs.shape}")  # (batch_size, num_yes_tokens)
         scores = torch.sum(yes_probs, dim=-1)
-        logger.debug(f"scores.shape: {scores.shape}")
+        logger.debug(f"scores.shape: {scores.shape}")  # (batch_size,)
         del yes_probs, probs, logits, outputs, inputs
         return scores
 
@@ -100,9 +107,6 @@ OPTIONS:
 
     def get_prompts(self, datapoints: list[str]) -> list[str]:
         return [self.get_prompt(datapoint) for datapoint in datapoints]
-
-    def __is_t5(self) -> bool:
-        return isinstance(self.model, T5ForConditionalGeneration)
 
     def __sanitize(self, datapoint: str) -> str:
         # TODO: What type of sanitization is required for the prompt?
@@ -121,7 +125,7 @@ OPTIONS:
                 f"Truncated the datapoint to fit the maximum context size. {tokens_len} > {self.max_datapoint_tokens}"
             )
             logger.debug(f"len(truncated_tokens): {len(truncated_tokens)}")
-            # TODO: Fix bug that flan-t5 cannot recover the original text from the truncated tokens.
+            # TODO: flan-t5 cannot recover the original text
             truncated_datapoint = self.__token_decode(truncated_tokens)
             logger.debug(f"len(truncated_datapoint): {len(truncated_datapoint)}")
             return truncated_datapoint
@@ -136,8 +140,11 @@ OPTIONS:
     def __token_length(self, datapoint: str) -> int:
         return len(self.__token_encode(datapoint))
 
-    def __log_top_k(self, probs: torch.Tensor, k: int = 10):
-        for prob in probs:
-            top_k = torch.topk(prob, k, dim=-1)
-            for i, (idx, val) in enumerate(zip(top_k.indices, top_k.values)):
-                logger.debug(f"{i + 1:2d}\t'{self.tokenizer.decode(idx)}'\t{val.item():.4f}")
+    def __log_topk(self, probs: torch.Tensor, k: int = 10) -> None:
+        for i, prob in enumerate(probs):
+            tops = torch.topk(prob, k, dim=-1)
+            logger.debug("-" * 23)
+            logger.debug(f"datapoint {i + 1}")
+            for j, (idx, val) in enumerate(zip(tops.indices, tops.values)):
+                logger.debug(f"{j + 1:2d} | {self.tokenizer.decode(idx):8s} | {val.item():.4f}")
+        logger.debug("-" * 23)
