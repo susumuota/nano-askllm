@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nano-askllm"
-version = "0.2.2"
+version = "0.2.3"
 description = "Unofficial implementation of the Ask-LLM paper 'How to Train Data-Efficient LLMs', arXiv:2402.09668."
 authors = ["Susumu OTA <1632335+susumuota@users.noreply.github.com>"]
 readme = "README.md"
@@ -11,7 +11,7 @@ keywords = ["transformers", "llm", "large language model", "pre-training", "lang
 classifiers = ["Topic :: Software Development :: Libraries :: Python Modules"]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.9"
 torch = "^2.1.0"
 transformers = "^4.38.2"
 

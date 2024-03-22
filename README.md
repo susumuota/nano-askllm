@@ -20,13 +20,15 @@ pip install nano-askllm
 > **Note**: Flan-T5 models cannot tokenize multilingual text properly (e.g. Japanese).
 
 ```python
+# pip install datasets sentencepiece accelerate
+
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 from datasets import load_dataset
 from nano_askllm import AskLLM
 
 model_id = "google/flan-t5-small"
 tokenizer = T5Tokenizer.from_pretrained(model_id)
-model = T5ForConditionalGeneration.from_pretrained(model_id)
+model = T5ForConditionalGeneration.from_pretrained(model_id, device_map="auto")
 
 dataset = load_dataset("allenai/c4", "en", split="train", streaming=True)
 
@@ -47,13 +49,16 @@ for i in range(num_ask):
 - Scoring mC4 Japanese dataset with `gemma-2b-it` model. `gemma` models need to tweak the prompt template and the yes tokens.
 
 ```python
+# pip install datasets sentencepiece accelerate
+# hugginface-cli login
+
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from datasets import load_dataset
 from nano_askllm import AskLLM
 
 model_id = "google/gemma-2b-it"
 tokenizer = AutoTokenizer.from_pretrained(model_id)
-model = AutoModelForCausalLM.from_pretrained(model_id)
+model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto")
 
 dataset = load_dataset("allenai/c4", "ja", split="train", streaming=True)
 
