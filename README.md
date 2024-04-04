@@ -16,7 +16,8 @@ pip install nano-askllm
 
 ## Usage
 
-- Scoring C4 English dataset with `flan-t5-small` model.
+### Scoring C4 English dataset with `flan-t5-small` model.
+
 > **Note**: Flan-T5 models cannot tokenize multilingual text properly (e.g. Japanese).
 
 ```python
@@ -46,7 +47,7 @@ for i in range(num_ask):
     dataset = dataset.skip(batch_size)
 ```
 
-- Scoring mC4 Japanese dataset with `gemma-2b-it` model. `gemma` models need to tweak the prompt template and the yes tokens.
+### Scoring mC4 Japanese dataset with `gemma-2b-it` model. This model needs to tweak the prompt template and the yes tokens.
 
 ```python
 # pip install datasets sentencepiece accelerate
@@ -80,6 +81,54 @@ llm = AskLLM(
     prompt_template_postfix=prompt_template_postfix,
     yes_tokens=yes_tokens,
     max_tokens=512,  # You can increase it up to 8192 for gemma-2b-it.
+)
+
+batch_size = 2
+num_ask = 5
+
+for i in range(num_ask):
+    datapoints = [item["text"] for item in list(dataset.take(batch_size))]
+    scores = llm.ask(datapoints)
+    for score, datapoint in zip(scores.tolist(), datapoints):
+        text = datapoint[:40].replace("\n", " ")
+        print(f"score: {score:.4f}\ttext: {text}")
+    dataset = dataset.skip(batch_size)
+```
+
+### Scoring CulturaX Japanese dataset with `RakutenAI-7B-chat` model. This model needs to tweak the prompt template and the yes tokens.
+
+```python
+# pip install datasets sentencepiece accelerate
+# hugginface-cli login
+
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from datasets import load_dataset
+from nano_askllm import AskLLM
+
+model_id = "Rakuten/RakutenAI-7B-chat"
+tokenizer = AutoTokenizer.from_pretrained(model_id)
+model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto")
+
+dataset = load_dataset("uonlp/CulturaX", "ja", split="train", streaming=True)
+
+prompt_template_prefix = "###\n"
+prompt_template_postfix = """
+###
+
+Does the previous paragraph demarcated within ### and ### contain informative signal for pre-training a large-language model? An informative datapoint should be well-formatted, contain some usable knowledge of the world, and strictly NOT have any harmful, racist, sexist, etc. content.
+
+OPTIONS: yes/no
+ANSWER:"""
+
+yes_tokens = ["yes", "Yes"]
+
+llm = AskLLM(
+    tokenizer,
+    model,
+    prompt_template_prefix=prompt_template_prefix,
+    prompt_template_postfix=prompt_template_postfix,
+    yes_tokens=yes_tokens,
+    max_tokens=512,  # You can increase it up to 8192 for Mistral-7B-v0.1 based models.
 )
 
 batch_size = 2
