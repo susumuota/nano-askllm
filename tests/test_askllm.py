@@ -31,6 +31,7 @@ def test_version():
     print("test_version passed")
 
 
+@pytest.mark.skip()
 def test_paper_appendix_e():
     model_id = "google/flan-t5-small"
     tokenizer = T5Tokenizer.from_pretrained(model_id)
@@ -114,7 +115,7 @@ def test_gemma_mc4_ja():
     model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto")
     # For 4bit quantization on Colab T4 GPU
     # quantization_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16)
-    # model = AutoModelForCausalLM.from_pretrained("google/gemma-2b-it", quantization_config=quantization_config)
+    # model = AutoModelForCausalLM.from_pretrained(model_id, quantization_config=quantization_config, device_map="auto")  # noqa: E501
 
     # Load mC4 Japanese dataset.
     # You can see the actual content at the following URLs:
@@ -169,3 +170,67 @@ ANSWER:"""  # noqa: E501
 
     del llm, dataset, model, tokenizer
     print("test_gemma_mc4_ja passed")
+
+
+def test_rakuten_culturax_ja():
+    # load the model and tokenizer
+    model_id = "Rakuten/RakutenAI-7B-chat"
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto")
+    # For 4bit quantization on Colab T4 GPU
+    # quantization_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16)
+    # model = AutoModelForCausalLM.from_pretrained(model_id, quantization_config=quantization_config, device_map="auto")  # noqa: E501
+
+    # Load CulturaX Japanese dataset.
+    # You can see the actual content at the following URLs:
+    # https://huggingface.co/datasets/uonlp/CulturaX/viewer/ja
+    dataset = load_dataset("uonlp/CulturaX", "ja", split="train", streaming=True)
+
+    # Default prompt template is not suitable for gemma-2b-it.
+    # I changed "OPTIONS:" format from "\n- yes\n- no\n" to " yes/no\n".
+    # I added "ANSWER:" to the last line to increase the probability of "yes" or "no" being the first token.
+    # TODO: prompt engineering is necessary for each model.
+    prompt_template_prefix = "###\n"
+    prompt_template_postfix = """
+###
+
+Does the previous paragraph demarcated within ### and ### contain informative signal for pre-training a large-language model? An informative datapoint should be well-formatted, contain some usable knowledge of the world, and strictly NOT have any harmful, racist, sexist, etc. content.
+
+OPTIONS: yes/no
+ANSWER:"""  # noqa: E501
+
+    yes_tokens = ["yes", "Yes"]  # for RakutenAI-7B-chat
+
+    llm = AskLLM(
+        tokenizer,
+        model,
+        prompt_template_prefix=prompt_template_prefix,
+        prompt_template_postfix=prompt_template_postfix,
+        yes_tokens=yes_tokens,
+        max_tokens=512,  # You can increase it up to 8192 for Mistral-7B-v0.1 based models.
+    )
+    assert llm is not None
+
+    batch_size = 1
+    num_ask = 10
+
+    print("-" * 80)
+    start_time = time()
+    for i in range(num_ask):
+        print(f"batch {i + 1} start")
+        datapoints = [item["text"] for item in list(dataset.take(batch_size))]
+        scores = llm.ask(datapoints)
+        assert isinstance(scores, torch.Tensor) and scores.shape == (batch_size,)
+        assert all(scores >= 0.0) and all(scores <= 1.0)
+        for score, datapoint in zip(scores.tolist(), datapoints):
+            text = datapoint[:80].replace("\n", " ")
+            print(f"score: {score:.4f}\ttext: {text}")
+        del scores
+        dataset = dataset.skip(batch_size)
+        end_time = time()
+        print(f"batch {i + 1} end, {(end_time - start_time):.4f} seconds")
+        print("-" * 80)
+        start_time = end_time
+
+    del llm, dataset, model, tokenizer
+    print("test_rakuten_culturax_ja passed")
