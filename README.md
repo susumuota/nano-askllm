@@ -47,7 +47,9 @@ for i in range(num_ask):
     dataset = dataset.skip(batch_size)
 ```
 
-### Scoring mC4 Japanese dataset with `gemma-2b-it` model. This model needs to tweak the prompt template and the yes tokens.
+### Scoring mC4 Japanese dataset with `gemma-2b-it` model.
+
+This model needs to tweak the prompt template and the yes tokens.
 
 ```python
 # pip install datasets sentencepiece accelerate
@@ -95,11 +97,12 @@ for i in range(num_ask):
     dataset = dataset.skip(batch_size)
 ```
 
-### Scoring CulturaX Japanese dataset with `RakutenAI-7B-chat` model. This model needs to tweak the prompt template and the yes tokens.
+### Scoring CulturaX Japanese dataset with `RakutenAI-7B-chat` model.
+
+This model needs to tweak the prompt template and the yes tokens.
 
 ```python
 # pip install datasets sentencepiece accelerate
-# hugginface-cli login
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from datasets import load_dataset
