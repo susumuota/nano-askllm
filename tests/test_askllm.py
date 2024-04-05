@@ -35,7 +35,7 @@ def test_version():
 def test_paper_appendix_e():
     model_id = "google/flan-t5-small"
     tokenizer = T5Tokenizer.from_pretrained(model_id)
-    model = T5ForConditionalGeneration.from_pretrained(model_id, device_map="auto")
+    model = T5ForConditionalGeneration.from_pretrained(model_id, torch_dtype="auto", device_map="auto")
     llm = AskLLM(tokenizer, model)
     assert isinstance(llm, AskLLM)
 
@@ -72,7 +72,7 @@ def test_flan_t5_c4_en():
     # *Flan T5 only works on English datasets.*
     model_id = "google/flan-t5-small"
     tokenizer = T5Tokenizer.from_pretrained(model_id)
-    model = T5ForConditionalGeneration.from_pretrained(model_id, device_map="auto")
+    model = T5ForConditionalGeneration.from_pretrained(model_id, torch_dtype="auto", device_map="auto")
 
     # Load C4 English dataset.
     # You can see the actual content at the following URLs:
@@ -112,7 +112,7 @@ def test_gemma_mc4_ja():
     # load the model and tokenizer
     model_id = "google/gemma-2b-it"
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-    model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto")
+    model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype="auto", device_map="auto")
     # For 4bit quantization on Colab T4 GPU
     # quantization_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16)
     # model = AutoModelForCausalLM.from_pretrained(model_id, quantization_config=quantization_config, device_map="auto")  # noqa: E501
@@ -174,9 +174,9 @@ ANSWER:"""  # noqa: E501
 
 def test_rakuten_culturax_ja():
     # load the model and tokenizer
-    model_id = "Rakuten/RakutenAI-7B-chat"
+    model_id = "Rakuten/RakutenAI-7B-instruct"
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-    model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto")
+    model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype="auto", device_map="auto")
     # For 4bit quantization on Colab T4 GPU
     # quantization_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16)
     # model = AutoModelForCausalLM.from_pretrained(model_id, quantization_config=quantization_config, device_map="auto")  # noqa: E501
@@ -186,7 +186,7 @@ def test_rakuten_culturax_ja():
     # https://huggingface.co/datasets/uonlp/CulturaX/viewer/ja
     dataset = load_dataset("uonlp/CulturaX", "ja", split="train", streaming=True)
 
-    # Default prompt template is not suitable for gemma-2b-it.
+    # Default prompt template is not suitable for RakutenAI-7B-instruct.
     # I changed "OPTIONS:" format from "\n- yes\n- no\n" to " yes/no\n".
     # I added "ANSWER:" to the last line to increase the probability of "yes" or "no" being the first token.
     # TODO: prompt engineering is necessary for each model.
@@ -199,7 +199,7 @@ Does the previous paragraph demarcated within ### and ### contain informative si
 OPTIONS: yes/no
 ANSWER:"""  # noqa: E501
 
-    yes_tokens = ["yes", "Yes"]  # for RakutenAI-7B-chat
+    yes_tokens = ["yes", "Yes"]  # for RakutenAI-7B-instruct
 
     llm = AskLLM(
         tokenizer,
