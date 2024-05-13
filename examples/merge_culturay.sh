@@ -19,7 +19,7 @@ dataset_lang="ja"
 dataset_split="train"
 cache_dir="/storage7/askllm/hf_cache"
 
-seq -w 0000 3006 | parallel -j 160 python merge_askllm_scores.py \
+seq -w 0000 3006 | parallel -j 160 python merge_askllm.py \
     --input_tsv="culturay_scores_sorted_split_{}.tsv" \
     --output_jsonl="culturay_scores_sorted_split_{}.jsonl" \
     --dataset_path="$dataset_path" \
