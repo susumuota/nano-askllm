@@ -22,6 +22,7 @@ output_suffix_offset=16  # 0 for node1, 8 for node2, 16 for node3
 dataset_path="uonlp/CulturaX"
 dataset_lang="ja"
 dataset_split="train"
+dataset_fields="text"
 model_id="Rakuten/RakutenAI-7B-instruct"
 cache_dir="/storage7/askllm/hf_cache"
 log_interval=100
@@ -41,6 +42,7 @@ do
         --dataset_path="$dataset_path" \
         --dataset_lang="$dataset_lang" \
         --dataset_split="$dataset_split" \
+        --dataset_fields="$dataset_fields" \
         --model_id="$model_id" \
         --cache_dir="$cache_dir" \
         --log_interval="$log_interval" \
