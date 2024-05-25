@@ -5,8 +5,32 @@ from logging import ERROR, StreamHandler, getLogger
 import argparse
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
+import pandas as pd
 from nano_askllm import AskLLM
 import wandb
+
+
+# for https://huggingface.co/datasets/llm-jp/hh-rlhf-12k-ja dataset
+# https://github.com/llm-jp/llm-jp-dpo/blob/020fa2eada0951929380811835ae6cc6b1cd84b3/train.py#L16
+def return_prompt_and_responses(samples) -> dict[str, list[str]]:
+    prompts: list[str] = []
+    chosens: list[str] = []
+    rejecteds: list[str] = []
+
+    for conversation, chosen, rejected in zip(samples["conversations"], samples["chosen"], samples["rejected"]):
+        prompt: str = "以下は、タスクを説明する指示です。要求を適切に満たす応答を書きなさい。"
+        for utterance in conversation:
+            if utterance["from"] == "human":
+                prompt += f"\n\n### 指示:\n{utterance['value']}"
+            else:
+                prompt += f"\n\n### 応答:\n{utterance['value']}"
+        prompt += "\n\n### 応答:\n"
+        prompts.append(prompt)
+        chosens.append(chosen)
+        rejecteds.append(rejected)
+
+    return {"prompt": prompts, "chosen": chosens, "rejected": rejecteds}
+
 
 # Set logging level to ERROR.
 logger = getLogger("nano_askllm.askllm")
@@ -26,6 +50,7 @@ parser.add_argument("--output_suffix_offset", type=int, help="Output file suffix
 parser.add_argument("--dataset_path", type=str, help="Dataset path name.", default="allenai/c4")
 parser.add_argument("--dataset_lang", type=str, help="Dataset language.", default="ja")
 parser.add_argument("--dataset_split", type=str, help="Dataset split.", default="train")
+parser.add_argument("--dataset_fields", type=str, help="Dataset fields separated by comma.", default="text")
 parser.add_argument("--model_id", type=str, help="Model ID.", default="Rakuten/RakutenAI-7B-instruct")
 parser.add_argument("--cache_dir", type=str, help="Cache directory.", default=None)
 parser.add_argument("--log_interval", type=int, help="Log interval.", default=1000)
@@ -43,6 +68,7 @@ output_suffix_offset = args.output_suffix_offset
 dataset_path = args.dataset_path
 dataset_lang = args.dataset_lang
 dataset_split = args.dataset_split
+dataset_fields = args.dataset_fields.split(",")
 model_id = args.model_id
 cache_dir = args.cache_dir
 log_interval = args.log_interval
@@ -59,6 +85,11 @@ model = AutoModelForCausalLM.from_pretrained(
 dataset = load_dataset(dataset_path, name=dataset_lang, split=dataset_split, cache_dir=cache_dir)
 
 model.generation_config.pad_token_id = model.generation_config.eos_token_id
+
+if "conversations" in dataset.column_names:
+    dataset = dataset.map(return_prompt_and_responses, batched=True, remove_columns=dataset.column_names)
+    dataset_fields = ["prompt" if field == "conversations" else field for field in dataset_fields]
+    print(f"Dataset columns: {dataset.column_names}", flush=True)
 
 prompt_template_prefix = "###\n"
 prompt_template_postfix = """
@@ -93,6 +124,8 @@ try:
         start = int(last_index) + 1 if len(last_index) > 0 else start
 except FileNotFoundError:
     pass
+except IndexError:
+    pass
 
 print(f"Scoring from {start} to {end} with batch size {batch_size}.", flush=True)
 
@@ -101,9 +134,11 @@ with open(filename, "a") as f:
     for i in range(start, end, batch_size):
         batch_start = i
         batch_end = i + batch_size if i + batch_size < end else end
-        batch = dataset[batch_start:batch_end]["text"]
-        if len(batch) == 0:
+        data = dataset[batch_start:batch_end]
+        if len(data) == 0:
             break
+        dicts = pd.DataFrame(data).to_dict(orient="records")
+        batch = ["\n".join([dic[field] or "" for field in dataset_fields]) for dic in dicts]
         scores = llm.ask(batch)
         for index, score in enumerate(scores.tolist()):
             line = f"{score:.4f}\t{batch_start + index}"
