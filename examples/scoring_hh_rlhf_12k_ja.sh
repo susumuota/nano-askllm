@@ -22,7 +22,7 @@ output_suffix_offset=0  # 0 for node1, 8 for node2, 16 for node3
 dataset_path="llm-jp/hh-rlhf-12k-ja"
 dataset_lang="default"
 dataset_split="train"
-dataset_fields="conversations,chosen"
+dataset_fields="conversations,chosen,rejected"
 model_id="Rakuten/RakutenAI-7B-instruct"
 cache_dir="/storage7/askllm/hf_cache"
 log_interval=100
@@ -31,7 +31,7 @@ wandb_entity="weblab-geniac2"
 
 for rank in {0..7}
 do
-    python scoring_askllm.py \
+    python scoring_askllm_for_post_training.py \
         --rank="$rank" \
         --start=$(((output_suffix_offset+rank)*amount)) \
         --end=$(((output_suffix_offset+rank+1)*amount)) \
