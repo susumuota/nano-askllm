@@ -32,6 +32,7 @@ parser.add_argument("--cache_dir", type=str, help="Cache directory.", default=No
 parser.add_argument("--log_interval", type=int, help="Log interval.", default=1000)
 parser.add_argument("--wandb_project", type=str, help="WandB project name.", default=None)
 parser.add_argument("--wandb_entity", type=str, help="WandB entity name.", default=None)
+parser.add_argument("--wandb_name", type=str, help="WandB experiment name name.", default=None)
 args = parser.parse_args()
 
 start = args.start
@@ -48,17 +49,18 @@ cache_dir = args.cache_dir
 log_interval = args.log_interval
 wandb_project = args.wandb_project
 wandb_entity = args.wandb_entity
+wandb_name = args.wandb_name
 
-if wandb_project is not None and wandb_entity is not None:
-    wandb.init(project=wandb_project, entity=wandb_entity)
+if wandb_project is not None and wandb_entity is not None and wandb_name is not None:
+    wandb.init(project=wandb_project, entity=wandb_entity, name=wandb_name)
 
 tokenizer = AutoTokenizer.from_pretrained(model_id, torch_dtype="auto", device_map="auto", cache_dir=cache_dir)
 model = AutoModelForCausalLM.from_pretrained(
-    model_id, torch_dtype="auto", device_map="auto", cache_dir=cache_dir
+    model_id, torch_dtype="auto", device_map="auto", cache_dir=cache_dir, attn_implementation="flash_attention_2"
 )
 
 dataset = load_dataset(dataset_path, name=dataset_lang, split=dataset_split, cache_dir=cache_dir)
-model.generation_config.pad_token_id = model.generation_config.eos_token_id
+# model.generation_config.pad_token_id = model.generation_config.eos_token_id
 
 prompt_template_prefix = "###\n"
 prompt_template_postfix = """
@@ -69,7 +71,8 @@ Does the previous paragraph demarcated within ### and ### contain informative si
 OPTIONS: yes / no
 ANSWER:"""  # noqa: E501
 
-yes_tokens = ["yes", "Yes"]  # for RakutenAI-7B-instruct
+# yes_tokens = ["yes", "Yes"]  # for RakutenAI-7B-instruct
+yes_tokens = ["yes", "Yes", "YES"]  # for Phi-3
 
 llm = AskLLM(
     tokenizer,
@@ -117,5 +120,5 @@ with open(output_tsv, "a") as f:
         del scores
         batch_count += 1
 
-if wandb_project is not None and wandb_entity is not None:
+if wandb_project is not None and wandb_entity is not None and wandb_name is not None:
     wandb.finish()
